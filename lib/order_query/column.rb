@@ -6,7 +6,7 @@ require 'order_query/sql/column'
 module OrderQuery
   # An order column (sort column)
   class Column
-    attr_reader :name, :order_enum, :custom_sql
+    attr_reader :name, :order_enum, :custom_sql, :relation_name
     delegate :column_name, :quote, :scope, to: :@sql_builder
 
     # rubocop:disable Metrics/ParameterLists,Metrics/AbcSize
@@ -27,7 +27,7 @@ module OrderQuery
     #   encountered.
     # @param sql [String, nil] a custom sql fragment.
     def initialize(scope, attr_name, *vals_and_or_dir,
-                   unique: nil, nulls: false, sql: nil)
+                   unique: nil, nulls: false, sql: nil, relation_name: nil)
       @name = attr_name
       @order_enum = vals_and_or_dir.shift if vals_and_or_dir[0].is_a?(Array)
       @direction = Direction.parse!(
@@ -55,6 +55,7 @@ module OrderQuery
       end
       @custom_sql = sql
       @sql_builder = SQL::Column.new(scope, self)
+      @relation_name = relation_name
     end
     # rubocop:enable Metrics/ParameterLists,Metrics/AbcSize
     # rubocop:enable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity

@@ -65,7 +65,12 @@ module OrderQuery
 
     # @param column [Column]
     def value(column)
-      v = record.send(column.name)
+      v = if column.relation_name
+            record.send(column.relation_name)&.send(column.name)
+          else
+            record.send(column.name)
+          end
+
       if v.nil? && !column.nullable?
         fail Errors::NonNullableColumnIsNullError,
              "Column #{column.inspect} is NULL on record #{@record.inspect}. "\

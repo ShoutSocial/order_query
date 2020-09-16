@@ -22,6 +22,7 @@ end
 
 # Advanced model
 class Issue < ActiveRecord::Base
+
   DISPLAY_ORDER = [
     [:pinned, [true, false]],
     [:priority, %w[high medium low]],
@@ -29,6 +30,8 @@ class Issue < ActiveRecord::Base
     %i[updated_at desc],
     %i[id desc]
   ].freeze
+
+  belongs_to :user, optional: true
 
   def valid_votes_count
     votes - suspicious_votes
@@ -304,13 +307,13 @@ RSpec.describe 'OrderQuery' do
             post = create_post
             point = OrderQuery::Point.new(post, space)
             # rubocop:disable Metrics/LineLength
-            expect(point.inspect).to eq %(#<OrderQuery::Point @record=#<Post id: #{post.id}, title: nil, pinned: false, published_at: #{post.attribute_for_inspect(:published_at)}> @space=#<OrderQuery::Space @columns=[(pinned [true, false] desc), (id unique asc)] @base_scope=Post(id: integer, title: string, pinned: boolean, published_at: datetime)>>)
+            expect(point.inspect).to eq %(#<OrderQuery::Point @record=#<Post id: #{post.id}, title: nil, pinned: false, published_at: #{post.attribute_for_inspect(:published_at)}, user_id: nil> @space=#<OrderQuery::Space @columns=[(pinned [true, false] desc), (id unique asc)] @base_scope=Post(id: integer, title: string, pinned: boolean, published_at: datetime, user_id: integer)>>)
             # rubocop:enable Metrics/LineLength
           end
 
           it 'Space' do
             # rubocop:disable Metrics/LineLength
-            expect(space.inspect).to eq '#<OrderQuery::Space @columns=[(pinned [true, false] desc), (id unique asc)] @base_scope=Post(id: integer, title: string, pinned: boolean, published_at: datetime)>'
+            expect(space.inspect).to eq '#<OrderQuery::Space @columns=[(pinned [true, false] desc), (id unique asc)] @base_scope=Post(id: integer, title: string, pinned: boolean, published_at: datetime, user_id: integer)>'
             # rubocop:enable Metrics/LineLength
           end
         end
@@ -473,12 +476,71 @@ RSpec.describe 'OrderQuery' do
               t.string :title
               t.boolean :pinned
               t.datetime :published_at
+              t.integer :user_id
             end
           end
           Post.reset_column_information
         end
         after :all do
           ActiveRecord::Migration.drop_table :posts
+        end
+      end
+
+      context 'one-to-one relationships' do
+        context 'order' do
+          display = ->(issue) { [issue.user.name, issue.id].join('-') }
+
+          let!(:user1) do
+            User.create! name: "Jane Doe"
+          end
+          let!(:user2) do
+            User.create! name: "Alex Smith"
+          end
+          let!(:early_user_1_issue) do
+            Issue.create! updated_at: Time.new(2016, 5, 1, 5, 4, 3),
+                          id: 6,
+                          user_id: user1.id
+          end
+          let!(:late_user_1_issue) do
+            Issue.create! updated_at: Time.new(2017, 5, 1, 5, 4, 3),
+                          id: 4,
+                          user_id: user1.id
+          end
+          let!(:user_2_issue) do
+            Issue.create! updated_at: Time.new(2016, 5, 1, 5, 4, 3),
+                          id: 9,
+                          user_id: user2.id
+          end
+
+          it "orders by user's name then updated_at" do
+            space = Issue.joins(:user).seek([:name, :asc, sql: '"users"."name"', relation_name: :user], [:updated_at, :asc])
+
+            expect_order space, [user_2_issue, early_user_1_issue, late_user_1_issue], &display
+          end
+        end
+
+        before do
+          Issue.delete_all
+          User.delete_all
+        end
+        before :all do
+          ActiveRecord::Schema.define do
+            self.verbose = false
+            create_table :users do |t|
+              t.datetime :updated_at, null: false
+              t.string :name
+            end
+            create_table :issues do |t|
+              t.column :updated_at, :datetime
+              t.column :user_id, :integer
+            end
+          end
+          Issue.reset_column_information
+          User.reset_column_information
+        end
+        after :all do
+          ActiveRecord::Migration.drop_table :issues
+          ActiveRecord::Migration.drop_table :users
         end
       end
     end

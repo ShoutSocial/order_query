@@ -35,11 +35,12 @@ Each order option specified in `order_query` is an array in the following form:
 3. Sort direction, `:asc` or `:desc` (optional). Default: `:asc`; `:desc` when values to order by are specified.
 4. A hash (optional):
 
-| option     | description                                                                |
-|------------|----------------------------------------------------------------------------|
-| unique     | Unique attribute. Default: `true` for primary key, `false` otherwise.      |
-| sql        | Customize column SQL.                                                      |
-| nulls      | If set to `:first` or `:last`, orders `NULL`s accordingly.                 |
+| option        | description                                                           |
+|---------------|-----------------------------------------------------------------------|
+| unique        | Unique attribute. Default: `true` for primary key, `false` otherwise. |
+| sql           | Customize column SQL.                                                 |
+| nulls         | If set to `:first` or `:last`, orders `NULL`s accordingly.            |
+| relation_name | If set getting at's value is delegated to record.send(relation_name)  |
 
 If no unique column is specified, `[primary_key, :asc]` is used. Unique column must be last.
 
@@ -130,17 +131,34 @@ Post.find(42).seek(Post.visible, [:id, :desc]) #=> #<OrderQuery::Point>
 Post.find(42).seek([:id, :desc]) #=> #<OrderQuery::Point>
 ```
 
+### One-to-One Relations
+
+Order on one-to-one relations by specifying the relation's name and the sql to use. Your query must join the relation. `sql` option is required. `relation_name` is only required if you're creating a `OrderQuery::Point`.
+
+```ruby
+# relation_name required
+Post.joins(:user).seek([:name, :asc, sql: '"users"."name"']) #=> #<OrderQuery::Space>
+# relation_name NOT required
+Post.last.seek(Company.joins(:user), [:name, :asc, sql: '"users"."name"', relation_name: :user]) #=> #<OrderQuery::Point>
+```
+
 ### Advanced example
 
 ```ruby
 class Post < ActiveRecord::Base
   include OrderQuery
+
+  belongs_to :user
+
   order_query :order_home,
     # For an array of order values, default direction is :desc
     # High-priority issues will be ordered first in this example
     [:priority, %w(high medium low)],
     # A method and custom SQL can be used instead of an attribute
     [:valid_votes_count, :desc, sql: '(votes - suspicious_votes)'],
+    # A one-to-one relation's attribute can be used.
+    # Your query must already join the relation
+    [:name, :asc, sql: '"users"."name"', relation_name: :user]
     # Default sort order for non-array columns is :asc, just like SQL
     [:updated_at, :desc],
     # pass unique: true for unique attributes to get more optimized queries
