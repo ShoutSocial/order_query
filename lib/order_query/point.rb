@@ -71,11 +71,12 @@ module OrderQuery
             record.send(column.name)
           end
 
-      if v.nil? && !column.nullable?
-        fail Errors::NonNullableColumnIsNullError,
-             "Column #{column.inspect} is NULL on record #{@record.inspect}. "\
-             'Set the `nulls` option to :first or :last.'
-      end
+      # Disabled because the value can be nil IF its a left outer joined table. How can we check if this relation is being left outer joined?
+      # if v.nil? && !column.nullable?
+      #   fail Errors::NonNullableColumnIsNullError,
+      #        "Column #{column.inspect} is NULL on record #{@record.inspect}. "\
+      #        'Set the `nulls` option to :first or :last.'
+      # end
       v
     end
 
