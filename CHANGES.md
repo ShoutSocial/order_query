@@ -1,3 +1,8 @@
+## 0.6.0
+
+* Rails 8.0 now supported.
+* Rails >=7.2 and Ruby >=3.1.0 now required.
+
 ## 0.5.4
 
 * Rails 7.2 now supported.
