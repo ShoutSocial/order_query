@@ -74,14 +74,14 @@ module OrderQuery
       # Disabled because the value can be nil IF its a left outer joined table. How can we check if this relation is being left outer joined?
       # if v.nil? && !column.nullable?
       #   fail Errors::NonNullableColumnIsNullError,
-      #        "Column #{column.inspect} is NULL on record #{@record.inspect}. "\
+      #        "Column #{column.inspect} is NULL on record #{@record.send(inspect_method)}. "\
       #        'Set the `nulls` option to :first or :last.'
       # end
       v
     end
 
     def inspect
-      "#<OrderQuery::Point @record=#{@record.inspect} @space=#{@space.inspect}>"
+      "#<OrderQuery::Point @record=#{@record.send(inspect_method)} @space=#{@space.inspect}>"
     end
 
     protected
@@ -90,6 +90,13 @@ module OrderQuery
     # @return [ActiveRecord::Base, nil] rec unless rec == @record
     def unless_record_eq(rec)
       rec unless rec == @record
+    end
+
+    private
+    
+    def inspect_method
+      Gem::Version.new(ActiveRecord::VERSION::STRING) >= Gem::Version.new("7.2.0") ? :full_inspect
+                                                                                   : :inspect
     end
   end
 end
